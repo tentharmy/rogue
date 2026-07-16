@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	"github.com/tentharmy/rogue/inner/tui"
+)
 
 func main() {
-	fmt.Println("GoRogue")
+	if err := tui.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Oof: %v\n", err)
+		os.Exit(1)
+	}
 }
