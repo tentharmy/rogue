@@ -27,3 +27,6 @@ jobs:
             echo "$files"
             exit 1
           fi
+
+      - name: Run go vet
+        run: go vet ./...
