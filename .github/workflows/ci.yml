@@ -18,3 +18,12 @@ jobs:
 
       - name: Show Go version
         run: go version
+
+      - name: Check formatting
+        run: |
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "Unformatted files:"
+            echo "$files"
+            exit 1
+          fi
