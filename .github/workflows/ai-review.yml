@@ -37,7 +37,6 @@ jobs:
 
           if [ "$diff_size" -gt "$MAX_DIFF_BYTES" ]; then
             {
-              echo '<!-- gorogue-ai-review -->'
               echo "AI review skipped."
               echo
               echo "The pull request diff is ${diff_size} bytes,"
