@@ -3,7 +3,7 @@ name: AI Review
 on:
   pull_request:
     branches:
-      -main
+      - main
 
 jobs:
   review:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@4
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -31,31 +31,31 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           {
-            cat <<'PROMPT'
-            You are reviewing a pull request for GoRogue, a game written in Go.
+          cat <<'PROMPT'
+          You are reviewing a pull request for GoRogue, a game written in Go.
 
-            Review only the supplied diff.
+          Review only the supplied diff.
 
-            Do not report:
-            - formatting issues;
-            - problems already reliably detected by gofmt, go vet, or golangci-lint;
-            - subjective style preferences.
+          Do not report:
+          - formatting issues;
+          - problems already reliably detected by gofmt, go vet, or golangci-lint;
+          - subjective style preferences.
 
-            Look for:
-            - behavioral bugs;
-            - incorrect error handling;
-            - broken invariants;
-            - architecture and dependency problems;
-            - unnecessary complexity;
-            - missing tests for meaningful behavior.
+          Look for:
+          - behavioral bugs;
+          - incorrect error handling;
+          - broken invariants;
+          - architecture and dependency problems;
+          - unnecessary complexity;
+          - missing tests for meaningful behavior.
 
-            Be precise. Reference filenames and changed lines where possible.
-            If there are no meaningful findings, say so explicitly.
+          Be precise. Reference filenames and changed lines where possible.
+          If there are no meaningful findings, say so explicitly.
 
-            Pull request diff:
-            PROMPT
+          Pull request diff:
+          PROMPT
 
-            cat pull-request.diff
+          cat pull-request.diff
           } > review-input.txt
 
           jq -n \
