@@ -1,11 +1,15 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
+	"github.com/tentharmy/rogue/inner/app"
+	"github.com/tentharmy/rogue/inner/geom"
 )
 
-func Run() error {
-	p := tea.NewProgram(initialModel())
+func Run(serv *app.GameService) error {
+	p := tea.NewProgram(initialModel(serv))
 	if _, err := p.Run(); err != nil {
 		return err
 	}
@@ -14,10 +18,13 @@ func Run() error {
 }
 
 type model struct {
+	serv *app.GameService
 }
 
-func initialModel() model {
-	return model{}
+func initialModel(serv *app.GameService) model {
+	return model{
+		serv: serv,
+	}
 }
 
 func (m model) Init() tea.Cmd {
@@ -30,11 +37,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
+		case "up":
+			m.serv.MovePlayer(geom.Vec2{X: 0, Y: -1})
+		case "down":
+			m.serv.MovePlayer(geom.Vec2{X: 0, Y: 1})
+		case "left":
+			m.serv.MovePlayer(geom.Vec2{X: -1, Y: 0})
+		case "right":
+			m.serv.MovePlayer(geom.Vec2{X: 1, Y: 0})
 		}
 	}
 	return m, nil
 }
 
 func (m model) View() tea.View {
-	return tea.NewView("rogue")
+	snapshot := m.serv.GetSnapshot()
+	v := tea.NewView(fmt.Sprintf("Player: %v", snapshot.PlayerPos))
+	v.AltScreen = true
+	return v
 }
