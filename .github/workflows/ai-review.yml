@@ -4,6 +4,10 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  OPENAI_MODEL: gpt-5-mini
+  MAX_DIFF_BYTES: 100000
+
 on:
   pull_request:
     branches:
@@ -27,10 +31,23 @@ jobs:
         run: |
           git diff "$BASE_SHA" "$HEAD_SHA" > pull-request.diff
 
-          echo "Diff size: $(wc -c < pull-request.diff) bytes"
+          diff_size="$(wc -c < pull-request.diff)"
+          echo "Diff size: $diff_size bytes"
           echo "Changed lines: $(wc -l < pull-request.diff)"
 
+          if [ "$diff_size" -gt "$MAX_DIFF_BYTES" ]; then
+            {
+              echo "AI review skipped."
+              echo
+              echo "The pull request diff is ${diff_size} bytes,"
+              echo "which exceeds the ${MAX_DIFF_BYTES} byte limit."
+            } > review.md
+            echo "skip_ai_review=true" >> "$GITHUB_ENV"
+            echo "skip_extract_ai_review=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Request AI Review
+        if: env.skip_ai_review != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -42,7 +59,8 @@ jobs:
 
           Do not report:
           - formatting issues;
-          - problems already reliably detected by gofmt, go vet, or golangci-lint;
+          - problems already reliably detected by gofmt, go vet,
+            or golangci-lint;
           - subjective style preferences.
 
           Look for:
@@ -64,27 +82,65 @@ jobs:
 
           jq -n \
             --rawfile input review-input.txt \
+            --arg model "$OPENAI_MODEL" \
             '{
-              model: "gpt-5-mini",
+              model: $model,
               input: $input
             }' > request.json
 
-          curl --fail-with-body \
+          set +e
+          http_status="$(curl --silent --show-error \
+            --write-out "%{http_code}" \
+            --output response.json \
             https://api.openai.com/v1/responses \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             -H "Content-Type: application/json" \
-            --data-binary @request.json \
-            > response.json
+            --data-binary @request.json)"
+          curl_exit=$?
+          set -e
+
+          if [ "$curl_exit" -ne 0 ]; then
+            {
+              echo "AI review failed."
+              echo
+              echo "The OpenAI API request failed before a valid HTTP"
+              echo "response was received."
+              echo
+              echo "curl exit code: $curl_exit"
+            } > review.md
+            echo "skip_extract_ai_review=true" >> "$GITHUB_ENV"
+          elif [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            {
+              echo "AI review failed."
+              echo
+              echo "OpenAI API returned HTTP status $http_status."
+              echo
+              echo '```json'
+              head -c 4000 response.json
+              echo
+              echo '```'
+            } > review.md
+            echo "skip_extract_ai_review=true" >> "$GITHUB_ENV"
+          fi
 
       - name: Extract AI Review
+        if: env.skip_extract_ai_review != 'true'
         run: |
           jq -r '
-            .output[]
+            .output[]?
             | select(.type == "message")
-            | .content[]
+            | .content[]?
             | select(.type == "output_text")
             | .text
           ' response.json > review.md
+
+          if [ ! -s review.md ]; then
+            {
+              echo "AI review produced no usable output."
+              echo
+              echo "Check the workflow logs for the raw OpenAI response."
+            } > review.md
+          fi
 
       - name: Publish AI Review
         env:
