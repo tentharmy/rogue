@@ -46,8 +46,16 @@ jobs:
             echo "skip_extract_ai_review=true" >> "$GITHUB_ENV"
           fi
 
+      - name: Check PR comments
+        env:
+          REPOSITORY: ${{ github.repository }}
+          PR_NUBMER: ${{ github.event.pull_request.number }}
+        run: |
+            gh api repos/$REPOSITORY/issues/$PR_NUMBER/comments | jr .
+
       - name: Request AI Review
-        if: env.skip_ai_review != 'true'
+#        if: env.skip_ai_review != 'true'
+        if: false
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -124,7 +132,8 @@ jobs:
           fi
 
       - name: Extract AI Review
-        if: env.skip_extract_ai_review != 'true'
+#        if: env.skip_extract_ai_review != 'true'
+        if: false
         run: |
           jq -r '
             .output[]?
@@ -143,6 +152,7 @@ jobs:
           fi
 
       - name: Publish AI Review
+        if: false
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
