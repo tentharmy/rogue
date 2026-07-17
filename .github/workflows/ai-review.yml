@@ -50,8 +50,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          PR_NUBMER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+            echo "$REPOSITORY"
+            echo "$PR_NUMBER"
             gh api repos/"$REPOSITORY"/issues/"$PR_NUMBER"/comments | jq .
 
       - name: Request AI Review
