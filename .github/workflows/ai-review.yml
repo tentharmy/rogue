@@ -48,6 +48,7 @@ jobs:
 
       - name: Check PR comments
         env:
+          GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           PR_NUBMER: ${{ github.event.pull_request.number }}
         run: |
