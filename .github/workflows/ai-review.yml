@@ -52,7 +52,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PR_NUBMER: ${{ github.event.pull_request.number }}
         run: |
-            gh api repos/$REPOSITORY/issues/$PR_NUMBER/comments | jq .
+            gh api repos/"$REPOSITORY"/issues/"$PR_NUMBER"/comments | jq .
 
       - name: Request AI Review
 #        if: env.skip_ai_review != 'true'
