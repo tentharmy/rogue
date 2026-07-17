@@ -1,5 +1,9 @@
 name: AI Review
 
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   pull_request:
     branches:
@@ -72,7 +76,7 @@ jobs:
             --data-binary @request.json \
             > response.json
 
-      - name: Print AI Review
+      - name: Extract AI Review
         run: |
           jq -r '
             .output[]
@@ -80,4 +84,14 @@ jobs:
             | .content[]
             | select(.type == "output_text")
             | .text
-          ' response.json
+          ' response.json > review.md
+
+      - name: Publish AI Review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh pr comment "$PR_NUMBER" \
+            --repo "$REPOSITORY" \
+            --body-file review.md
