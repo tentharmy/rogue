@@ -1,0 +1,83 @@
+name: AI Review
+
+on:
+  pull_request:
+    branches:
+      -main
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Create pull request diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff "$BASE_SHA" "$HEAD_SHA" > pull-request.diff
+
+          echo "Diff size: $(wc -c < pull-request.diff) bytes"
+          echo "Changed lines: $(wc -l < pull-request.diff)"
+
+      - name: Request AI Review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          {
+            cat <<'PROMPT'
+            You are reviewing a pull request for GoRogue, a game written in Go.
+
+            Review only the supplied diff.
+
+            Do not report:
+            - formatting issues;
+            - problems already reliably detected by gofmt, go vet, or golangci-lint;
+            - subjective style preferences.
+
+            Look for:
+            - behavioral bugs;
+            - incorrect error handling;
+            - broken invariants;
+            - architecture and dependency problems;
+            - unnecessary complexity;
+            - missing tests for meaningful behavior.
+
+            Be precise. Reference filenames and changed lines where possible.
+            If there are no meaningful findings, say so explicitly.
+
+            Pull request diff:
+            PROMPT
+
+            cat pull-request.diff
+          } > review-input.txt
+
+          jq -n \
+            --rawfile input review-input.txt \
+            '{
+              model: "gpt-5.6-luna",
+              input: $input
+            }' > request.json
+
+          curl --fail-with-body \
+            https://api.openai.com/v1/responses \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            --data-binary @request.json \
+            > response.json
+
+      - name: Print AI Review
+        run: |
+          jq -r '
+            .output[]
+            | select(.type == "message")
+            | .content[]
+            | select(.type == "output_text")
+            | .text
+          ' response.json
