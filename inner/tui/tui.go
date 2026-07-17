@@ -18,7 +18,9 @@ func Run(serv *app.GameService) error {
 }
 
 type model struct {
-	serv *app.GameService
+	serv   *app.GameService
+	width  int
+	height int
 }
 
 func initialModel(serv *app.GameService) model {
@@ -46,6 +48,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right":
 			m.serv.MovePlayer(geom.Vec2{X: 1, Y: 0})
 		}
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	}
 	return m, nil
 }
@@ -53,10 +58,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() tea.View {
 	snapshot := m.serv.GetSnapshot()
 
-	canvas := lipgloss.NewCanvas(100, 100)
-	canvas.SetCell(snapshot.PlayerPos.X, snapshot.PlayerPos.Y, uv.NewCell(canvas.WidthMethod(), "@"))
+	canvas := lipgloss.NewCanvas(m.width, m.height)
+	renderWorld(snapshot, canvas)
 
 	v := tea.NewView(canvas.Render())
 	v.AltScreen = true
 	return v
+}
+
+func renderWorld(snapshot app.GameSnapshot, canvas *lipgloss.Canvas) {
+	canvas.SetCell(snapshot.PlayerPos.X, snapshot.PlayerPos.Y, uv.NewCell(canvas.WidthMethod(), "@"))
 }
