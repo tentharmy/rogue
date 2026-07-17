@@ -37,6 +37,7 @@ jobs:
 
           if [ "$diff_size" -gt "$MAX_DIFF_BYTES" ]; then
             {
+              echo '<!-- gorogue-ai-review -->'
               echo "AI review skipped."
               echo
               echo "The pull request diff is ${diff_size} bytes,"
@@ -46,19 +47,8 @@ jobs:
             echo "skip_extract_ai_review=true" >> "$GITHUB_ENV"
           fi
 
-      - name: Check PR comments
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-            echo "$REPOSITORY"
-            echo "$PR_NUMBER"
-            gh api repos/"$REPOSITORY"/issues/"$PR_NUMBER"/comments | jq .
-
       - name: Request AI Review
-#        if: env.skip_ai_review != 'true'
-        if: false
+        if: env.skip_ai_review != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -135,8 +125,7 @@ jobs:
           fi
 
       - name: Extract AI Review
-#        if: env.skip_extract_ai_review != 'true'
-        if: false
+        if: env.skip_extract_ai_review != 'true'
         run: |
           jq -r '
             .output[]?
@@ -154,13 +143,26 @@ jobs:
             } > review.md
           fi
 
+          echo '<!-- gorogue-ai-review -->' >> review.md
+
       - name: Publish AI Review
-        if: false
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          gh pr comment "$PR_NUMBER" \
+          COMMENT_ID=$(
+            gh api repos/$REPOSITORY/issues/$PR_NUMBER/comments | jq -r \
+              '[.[] | select(.body | contains("gorogue-ai-review"))] | first | .id // empty'
+          )
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api \
+              --method PATCH \
+              repos/$REPOSITORY/issues/comments/$COMMENT_ID \
+              -F body=@review.md
+          else
+            gh pr comment "$PR_NUMBER" \
             --repo "$REPOSITORY" \
             --body-file review.md
+          fi
