@@ -1,9 +1,9 @@
 package tui
 
 import (
-	"fmt"
-
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tentharmy/rogue/inner/app"
 	"github.com/tentharmy/rogue/inner/geom"
 )
@@ -52,7 +52,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() tea.View {
 	snapshot := m.serv.GetSnapshot()
-	v := tea.NewView(fmt.Sprintf("Player: %v", snapshot.PlayerPos))
+
+	canvas := lipgloss.NewCanvas(100, 100)
+	canvas.SetCell(snapshot.PlayerPos.X, snapshot.PlayerPos.Y, uv.NewCell(canvas.WidthMethod(), "@"))
+
+	v := tea.NewView(canvas.Render())
 	v.AltScreen = true
 	return v
 }
